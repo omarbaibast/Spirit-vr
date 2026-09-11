@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aetheria: Journey of the Spirit</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #030308;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #e0e6ed;
+        }
+        #webgl-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 30px;
+        }
+        .glass-panel {
+            background: rgba(15, 15, 30, 0.45);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 16px;
+            padding: 18px 24px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        #title-container {
+            align-self: flex-start;
+        }
+        h1 {
+            font-weight: 300;
+            letter-spacing: 6px;
+            font-size: 1.8rem;
+            color: #e2f1ff;
+            text-transform: uppercase;
+            text-shadow: 0 0 15px rgba(160, 210, 255, 0.6);
+        }
+        p.subtitle {
+            font-size: 0.85rem;
+            letter-spacing: 2px;
+            color: #8da4c4;
+            margin-top: 4px;
+        }
+        #hud-container {
+            align-self: flex-end;
+            display: flex;
+            gap: 20px;
+        }
+        .stat-box {
+            text-align: right;
+        }
+        .stat-value {
+            font-size: 1.6rem;
+            font-weight: 300;
+            color: #ffd700;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+        .stat-label {
+            font-size: 0.75rem;
+            letter-spacing: 2px;
+            color: #a0b2ce;
+            text-transform: uppercase;
+        }
+        #controller-status {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #ff4757;
+            box-shadow: 0 0 8px #ff4757;
+            transition: all 0.3s ease;
+        }
+        .status-dot.active {
+            background-color: #2ed573;
+            box-shadow: 0 0 10px #2ed573;
+        }
+        #start-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(3, 3, 10, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: opacity 0.8s ease;
+        }
+        .start-btn {
+            margin-top: 25px;
+            padding: 14px 36px;
+            border-radius: 30px;
+            border: 1px solid rgba(200, 225, 255, 0.4);
+            background: rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+            font-size: 1rem;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+        }
+        #start-overlay:hover .start-btn {
+            background: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 0 20px rgba(180, 220, 255, 0.5);
+            transform: scale(1.05);
+        }
+        #controls-guide {
+            margin-top: 30px;
+            font-size: 0.8rem;
+            color: #7a8ca3;
+            line-height: 1.8;
+            text-align: center;
+        }
+        .ps4-btn {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.15);
+            color: #fff;
+            margin: 0 2px;
+        }
+    </style>
+    <!-- Include Three.js via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <div id="start-overlay">
+        <h1>Aetheria</h1>
+        <p class="subtitle">A Meditative Journey of the Spirit</p>
+        <div class="start-btn">Begin Meditation</div>
+        <div id="controls-guide">
+            <p><strong>PS4 Controller Mapping:</strong></p>
+            <p>🕹️ <b>Left Stick:</b> Float / Glide | 🕹️ <b>Right Stick:</b> Orbit Camera</p>
+            <p><span class="ps4-btn">❌ Cross</span> Ascend | <span class="ps4-btn">⭕ Circle</span> Descend</p>
+            <p><span class="ps4-btn">🔺 Triangle</span> Resonate Ambient Tone | <span class="ps4-btn">🟦 Square</span> Release Harmonic Wave</p>
+            <p style="margin-top:8px; opacity: 0.7;"><i>(Keyboard Fallback: WASD / Arrow Keys + Space to Ascend + Shift to Descend)</i></p>
+        </div>
+    </div>
+
+    <div id="ui-layer">
+        <div id="title-container" class="glass-panel">
+            <h1>Aetheria</h1>
+            <p class="subtitle">Awaken the Sacred Monoliths</p>
+        </div>
+        
+        <div id="hud-container">
+            <div class="glass-panel stat-box">
+                <div class="stat-value" id="harmony-score">0%</div>
+                <div class="stat-label">Realm Harmony</div>
+            </div>
+            <div class="glass-panel stat-box">
+                <div class="stat-value" id="orbs-collected">0 / 8</div>
+                <div class="stat-label">Sacred Essences</div>
+            </div>
+        </div>
+
+        <div id="controller-status" class="glass-panel">
+            <div class="status-dot" id="status-dot"></div>
+            <span id="status-text">PS4 Controller: Disconnected (Press any button)</span>
+        </div>
+    </div>
+
+    <div id="webgl-container"></div>
+
+    <script>
+        // --- PROCEDURAL AUDIO SYNTHESIZER (Web Audio API) ---
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.initialized = false;
+            }
+
+            init() {
+                if (this.initialized) return;
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AudioContext();
+                this.initialized = true;
+                this.startAmbientDrone();
+            }
+
+            // Continuous relaxing background drone (432Hz Solfeggio scale base)
+            startAmbientDrone() {
+                const freqs = [108, 162, 216, 288]; // Harmonic pentatonic resonant stack
+                freqs.forEach((freq) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    
+                    // Soft slow pulsating LFO for ambient feel
+                    const lfo = this.ctx.createOscillator();
+                    const lfoGain = this.ctx.createGain();
+                    lfo.frequency.value = 0.1 + Math.random() * 0.15;
+                    lfoGain.gain.value = 0.03;
+                    
+                    lfo.connect(gain.gain);
+                    lfo.start();
+
+                    gain.gain.setValueAtTime(0.02, this.ctx.currentTime);
+                    
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                });
+            }
+
+            // Singing Bowl Chime when collecting Essence or pulsing
+            playSingingBowl(freq = 432, duration = 3.5) {
+                if (!this.initialized) return;
+                const now = this.ctx.currentTime;
+                
+                // Primary Tone
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                
+                // Harmonic overtone
+                const oscOver = this.ctx.createOscillator();
+                const gainOver = this.ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, now);
+                
+                oscOver.type = 'sine';
+                oscOver.frequency.setValueAtTime(freq * 2.75, now); // Metallic overtone
+
+                // Envelope
+                gain.gain.setValueAtTime(0.01, now);
+                gain.gain.exponentialRampToValueAtTime(0.3, now + 0.1);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+                gainOver.gain.setValueAtTime(0.01, now);
+                gainOver.gain.exponentialRampToValueAtTime(0.08, now + 0.05);
+                gainOver.gain.exponentialRampToValueAtTime(0.0001, now + (duration * 0.6));
+
+                osc.connect(gain);
+                oscOver.connect(gainOver);
+                gain.connect(this.ctx.destination);
+                gainOver.connect(this.ctx.destination);
+
+                osc.start(now);
+                oscOver.start(now);
+                osc.stop(now + duration);
+                oscOver.stop(now + duration);
+            }
+        }
+
+        const soundEngine = new SoundEngine();
+
+        // --- THREE.JS GAME SETUP ---
+        const container = document.getElementById('webgl-container');
+        
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x040614, 0.018);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        container.appendChild(renderer.domElement);
+
+        // --- LIGHTING ---
+        const ambientLight = new THREE.AmbientLight(0x2a2b4a, 1.5);
+        scene.add(ambientLight);
+
+        const sunLight = new THREE.DirectionalLight(0x82aaff, 1.2);
+        sunLight.position.set(30, 60, 20);
+        scene.add(sunLight);
+
+        // --- PLAYER (SPIRIT ORB) ---
+        const playerGroup = new THREE.Group();
+        scene.add(playerGroup);
+
+        // Inner glowing core
+        const coreGeo = new THREE.SphereGeometry(0.6, 32, 32);
+        const coreMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const playerCore = new THREE.Mesh(coreGeo, coreMat);
+        playerGroup.add(playerCore);
+
+        // Outer ethereal aura
+        const auraGeo = new THREE.SphereGeometry(1.2, 32, 32);
+        const auraMat = new THREE.MeshLambertMaterial({
+            color: 0x00d2ff,
+            transparent: true,
+            opacity: 0.45,
+            wireframe: true
+        });
+        const playerAura = new THREE.Mesh(auraGeo, auraMat);
+        playerGroup.add(playerAura);
+
+        // Point light attached to Spirit Orb
+        const playerLight = new THREE.PointLight(0x00d2ff, 3, 20);
+        playerGroup.add(playerLight);
+
+        // Spirit Particle Trail
+        const particleCount = 120;
+        const particleGeo = new THREE.BufferGeometry();
+        const particlePositions = new Float32Array(particleCount * 3);
+        
+        for (let i = 0; i < particleCount * 3; i++) {
+            particlePositions[i] = (Math.random() - 0.5) * 2;
+        }
+        particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+        
+        const particleMat = new THREE.PointsMaterial({
+            color: 0xa6e3e9,
+            size: 0.15,
+            transparent: true,
+            opacity: 0.6,
+            blending: THREE.AdditiveBlending
+        });
+        const spiritParticles = new THREE.Points(particleGeo, particleMat);
+        playerGroup.add(spiritParticles);
+
+        playerGroup.position.set(0, 3, 0);
+
+        // --- ENVIRONMENT & SACRED MONOLITHS ---
+        // Starfield / Floating Cosmos
+        const starsGeo = new THREE.BufferGeometry();
+        const starCount = 1500;
+        const starPos = new Float32Array(starCount * 3);
+        for(let i = 0; i < starCount * 3; i+=3) {
+            starPos[i] = (Math.random() - 0.5) * 350;
+            starPos[i+1] = Math.random() * 150 - 20;
+            starPos[i+2] = (Math.random() - 0.5) * 350;
+        }
+        starsGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+        const starsMat = new THREE.PointsMaterial({ color: 0x88bbff, size: 0.35, transparent: true, opacity: 0.8 });
+        const starField = new THREE.Points(starsGeo, starsMat);
+        scene.add(starField);
+
+        // Reflective Sacred Ground Plane
+        const groundGeo = new THREE.PlaneGeometry(300, 300, 64, 64);
+        // Distort ground height gently for smooth hills
+        const posAttr = groundGeo.attributes.position;
+        for (let i = 0; i < posAttr.count; i++) {
+            const x = posAttr.getX(i);
+            const y = posAttr.getY(i);
+            const z = Math.sin(x * 0.05) * Math.cos(y * 0.05) * 2.5;
+            posAttr.setZ(i, z);
+        }
+        groundGeo.computeVertexNormals();
+
+        const groundMat = new THREE.MeshStandardMaterial({
+            color: 0x090c1f,
+            roughness: 0.2,
+            metalness: 0.8,
+            flatShading: true
+        });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -2;
+        scene.add(ground);
+
+        // Monoliths (Sacred Octahedrons)
+        const monoliths = [];
+        const monolithGeo = new THREE.OctahedronGeometry(2.5, 0);
+        for (let i = 0; i < 6; i++) {
+            const angle = (i / 6) * Math.PI * 2;
+            const dist = 35;
+            const x = Math.cos(angle) * dist;
+            const z = Math.sin(angle) * dist;
+            
+            const mat = new THREE.MeshStandardMaterial({
+                color: 0x1f2940,
+                roughness: 0.1,
+                wireframe: true
+            });
+            const monolith = new THREE.Mesh(monolithGeo, mat);
+            monolith.position.set(x, 2, z);
+            scene.add(monolith);
+            monoliths.push(monolith);
+        }
+
+        // --- SACRED ESSENCE ORBS (COLLECTIBLES) ---
+        const essenceOrbs = [];
+        const totalOrbs = 8;
+        const orbGeo = new THREE.IcosahedronGeometry(0.7, 2);
+
+        function createEssenceOrbs() {
+            for (let i = 0; i < totalOrbs; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const radius = 12 + Math.random() * 45;
+                const x = Math.cos(angle) * radius;
+                const z = Math.sin(angle) * radius;
+                const y = 1.5 + Math.random() * 5;
+
+                const orbMat = new THREE.MeshStandardMaterial({
+                    color: 0xffd700,
+                    emissive: 0xffaa00,
+                    emissiveIntensity: 0.8,
+                    roughness: 0.2
+                });
+
+                const orb = new THREE.Mesh(orbGeo, orbMat);
+                orb.position.set(x, y, z);
+                
+                // Add tiny aura around essence
+                const pLight = new THREE.PointLight(0xffd700, 1.5, 8);
+                orb.add(pLight);
+
+                scene.add(orb);
+                essenceOrbs.push({ mesh: orb, collected: false, initialY: y });
+            }
+        }
+        createEssenceOrbs();
+
+        // --- CAMERA CONTROLS & STATE ---
+        let cameraAngleX = 0;
+        let cameraAngleY = 0.3;
+        const cameraDistance = 14;
+
+        let playerVelocity = new THREE.Vector3();
+        let collectedCount = 0;
+
+        // Keyboard controls fallback state
+        const keys = { w: false, a: false, s: false, d: false, space: false, shift: false };
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.w = true;
+            if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.s = true;
+            if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.a = true;
+            if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.d = true;
+            if (e.code === 'Space') keys.space = true;
+            if (e.shiftKey) keys.shift = true;
+        });
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.w = false;
+            if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.s = false;
+            if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.a = false;
+            if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.d = false;
+            if (e.code === 'Space') keys.space = false;
+            if (!e.shiftKey) keys.shift = false;
+        });
+
+        // --- GAMEPAD / PS4 CONTROLLER ENGINE ---
+        let gamepadIndex = null;
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+
+        window.addEventListener("gamepadconnected", (e) => {
+            gamepadIndex = e.gamepad.index;
+            statusDot.classList.add('active');
+            statusText.textContent = `Connected: ${e.gamepad.id.split('(')[0]}`;
+            console.log("Gamepad connected:", e.gamepad);
+        });
+
+        window.addEventListener("gamepaddisconnected", (e) => {
+            if (gamepadIndex === e.gamepad.index) {
+                gamepadIndex = null;
+                statusDot.classList.remove('active');
+                statusText.textContent = "PS4 Controller: Disconnected";
+            }
+        });
+
+        // Pulse Aura Effect
+        let lastPulseTime = 0;
+        function triggerAuraPulse(colorHex = 0x00ffff, soundFreq = 540) {
+            const now = performance.now();
+            if (now - lastPulseTime < 400) return; // Cooldown
+            lastPulseTime = now;
+
+            soundEngine.playSingingBowl(soundFreq, 2.5);
+
+            // Animate aura expanding temporarily
+            let scale = 1.0;
+            const pulseInterval = setInterval(() => {
+                scale += 0.15;
+                playerAura.scale.set(scale, scale, scale);
+                auraMat.opacity = 0.8 / scale;
+                if (scale >= 3.0) {
+                    clearInterval(pulseInterval);
+                    playerAura.scale.set(1, 1, 1);
+                    auraMat.opacity = 0.45;
+                }
+            }, 20);
+        }
+
+        // --- GAMEPAD POLLING & LOGIC ---
+        function handleGamepadInput() {
+            if (gamepadIndex === null) return null;
+
+            const gamepads = navigator.getGamepads();
+            const gp = gamepads[gamepadIndex];
+            if (!gp) return null;
+
+            // Apply deadzones for PS4 DualShock sticks
+            const applyDeadzone = (val) => (Math.abs(val) > 0.12 ? val : 0);
+
+            // Standard PS4 DualShock Mapping:
+            // Axes: 0 = Left Stick X, 1 = Left Stick Y, 2 = Right Stick X, 3 = Right Stick Y
+            const leftStickX = applyDeadzone(gp.axes[0]);
+            const leftStickY = applyDeadzone(gp.axes[1]);
+            const rightStickX = applyDeadzone(gp.axes[2]);
+            const rightStickY = applyDeadzone(gp.axes[3]);
+
+            // Buttons:
+            // 0 = Cross (X), 1 = Circle (O), 2 = Square ([]), 3 = Triangle (/\)
+            const btnCross = gp.buttons[0]?.pressed;
+            const btnCircle = gp.buttons[1]?.pressed;
+            const btnSquare = gp.buttons[2]?.pressed;
+            const btnTriangle = gp.buttons[3]?.pressed;
+
+            // Trigger Harmonic pulse on Triangle / Square
+            if (btnTriangle) triggerAuraPulse(0x00ffd2, 648);
+            if (btnSquare) triggerAuraPulse(0xff00d2, 324);
+
+            return {
+                moveX: leftStickX,
+                moveZ: leftStickY,
+                lookX: rightStickX,
+                lookY: rightStickY,
+                ascend: btnCross,
+                descend: btnCircle
+            };
+        }
+
+        // --- UPDATE LOOP ---
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = clock.getDelta();
+            const time = clock.getElapsedTime();
+
+            // Poll Gamepad Input
+            const gpInput = handleGamepadInput();
+
+            // 1. Camera Rotation
+            let rotateX = 0;
+            let rotateY = 0;
+
+            if (gpInput) {
+                rotateX = gpInput.lookX * 1.8 * delta;
+                rotateY = gpInput.lookY * 1.2 * delta;
+            }
+
+            cameraAngleX -= rotateX;
+            cameraAngleY = Math.max(0.1, Math.min(Math.PI / 2.2, cameraAngleY + rotateY));
+
+            // Position Camera relative to Player
+            camera.position.x = playerGroup.position.x + cameraDistance * Math.sin(cameraAngleX) * Math.cos(cameraAngleY);
+            camera.position.y = playerGroup.position.y + cameraDistance * Math.sin(cameraAngleY);
+            camera.position.z = playerGroup.position.z + cameraDistance * Math.cos(cameraAngleX) * Math.cos(cameraAngleY);
+            camera.lookAt(playerGroup.position.x, playerGroup.position.y + 0.5, playerGroup.position.z);
+
+            // 2. Player Movement relative to Camera Angle
+            let moveDirX = 0;
+            let moveDirZ = 0;
+            let moveDirY = 0;
+
+            if (gpInput) {
+                moveDirX = gpInput.moveX;
+                moveDirZ = gpInput.moveZ;
+                if (gpInput.ascend) moveDirY += 1;
+                if (gpInput.descend) moveDirY -= 1;
+            } else {
+                // Keyboard Fallbacks
+                if (keys.w) moveDirZ -= 1;
+                if (keys.s) moveDirZ += 1;
+                if (keys.a) moveDirX -= 1;
+                if (keys.d) moveDirX += 1;
+                if (keys.space) moveDirY += 1;
+                if (keys.shift) moveDirY -= 1;
+            }
+
+            // Calculate Forward and Right vectors from camera angle
+            const forward = new THREE.Vector3(-Math.sin(cameraAngleX), 0, -Math.cos(cameraAngleX)).normalize();
+            const right = new THREE.Vector3(Math.cos(cameraAngleX), 0, -Math.sin(cameraAngleX)).normalize();
+
+            const moveVector = new THREE.Vector3()
+                .addScaledVector(forward, -moveDirZ)
+                .addScaledVector(right, moveDirX);
+
+            if (moveVector.length() > 1) moveVector.normalize();
+
+            // Smooth Acceleration / Organic Floating Physics
+            const moveSpeed = 12.0;
+            playerVelocity.x = THREE.MathUtils.lerp(playerVelocity.x, moveVector.x * moveSpeed, delta * 3.0);
+            playerVelocity.z = THREE.MathUtils.lerp(playerVelocity.z, moveVector.z * moveSpeed, delta * 3.0);
+            playerVelocity.y = THREE.MathUtils.lerp(playerVelocity.y, moveDirY * (moveSpeed * 0.7), delta * 3.0);
+
+            playerGroup.position.addScaledVector(playerVelocity, delta);
+
+            // Ground & Ceiling Boundaries
+            if (playerGroup.position.y < 0.8) playerGroup.position.y = 0.8;
+            if (playerGroup.position.y > 22) playerGroup.position.y = 22;
+
+            // 3. Floating Animations & Visual Effects
+            const floatOffset = Math.sin(time * 2) * 0.15;
+            playerCore.position.y = floatOffset;
+            playerAura.rotation.y = time * 0.5;
+            playerAura.rotation.z = time * 0.3;
+
+            // Animate Monoliths
+            monoliths.forEach((m, idx) => {
+                m.rotation.y = time * 0.2 * (idx % 2 === 0 ? 1 : -1);
+                m.position.y = 2 + Math.sin(time + idx) * 0.5;
+            });
+
+            // 4. Collectibles Logic (Collision Detection)
+            essenceOrbs.forEach((item) => {
+                if (item.collected) return;
+
+                // Bobbing animation
+                item.mesh.position.y = item.initialY + Math.sin(time * 3 + item.mesh.position.x) * 0.3;
+                item.mesh.rotation.y += 0.02;
+
+                // Check distance to player
+                const dist = playerGroup.position.distanceTo(item.mesh.position);
+                if (dist < 2.2) {
+                    item.collected = true;
+                    scene.remove(item.mesh);
+
+                    collectedCount++;
+                    soundEngine.playSingingBowl(432 + (collectedCount * 54), 4.0);
+
+                    // Update UI HUD
+                    document.getElementById('orbs-collected').textContent = `${collectedCount} / ${totalOrbs}`;
+                    const harmonyPercent = Math.round((collectedCount / totalOrbs) * 100);
+                    document.getElementById('harmony-score').textContent = `${harmonyPercent}%`;
+
+                    // Awaken nearest monolith with light when collecting essence
+                    if (monoliths[collectedCount - 1]) {
+                        monoliths[collectedCount - 1].material.wireframe = false;
+                        monoliths[collectedCount - 1].material.emissive = new THREE.Color(0x00d2ff);
+                        monoliths[collectedCount - 1].material.emissiveIntensity = 0.6;
+                    }
+                }
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        // --- WINDOW RESIZE & START OVERLAY ---
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        const startOverlay = document.getElementById('start-overlay');
+        startOverlay.addEventListener('click', () => {
+            soundEngine.init();
+            startOverlay.style.opacity = '0';
+            setTimeout(() => {
+                startOverlay.style.display = 'none';
+            }, 800);
+        });
+
+        // Start render loop
+        animate();
+    </script>
+</body>
+</html>
